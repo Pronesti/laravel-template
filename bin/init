@@ -1,0 +1,89 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+PACKAGE="${1:-}"
+APP_NAME="${2:-}"
+
+if [[ -z "$PACKAGE" || -z "$APP_NAME" ]]; then
+    if [[ ! -t 0 ]]; then
+        echo "usage: bin/init <vendor/name> \"App Name\"" >&2
+        exit 1
+    fi
+    read -r -p "Composer package name (vendor/name): " PACKAGE
+    read -r -p "Application name: " APP_NAME
+fi
+
+if [[ ! "$PACKAGE" =~ ^[a-z0-9]([_.-]?[a-z0-9]+)*/[a-z0-9](([_.]|-{1,2})?[a-z0-9]+)*$ ]]; then
+    echo "error: '$PACKAGE' is not a valid composer package name" >&2
+    exit 1
+fi
+
+php -r '
+    $file = "composer.json";
+    $json = json_decode(file_get_contents($file), true, 512, JSON_THROW_ON_ERROR);
+    $json["name"] = $argv[1];
+    $json["description"] = $argv[2];
+    $json["license"] = "proprietary";
+    unset($json["keywords"]);
+    file_put_contents($file, json_encode($json, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL);
+' "$PACKAGE" "$APP_NAME"
+
+for env_file in .env.example .env; do
+    [[ -f "$env_file" ]] || continue
+    php -r '
+        $file = $argv[1];
+        // Escape for .env double-quoted syntax, then substitute via a callback so the
+        // replacement string is never scanned for backreferences — a name containing
+        // $1 or \1 would otherwise be silently rewritten.
+        $value = str_replace(["\\", "\""], ["\\\\", "\\\""], $argv[2]);
+        file_put_contents($file, preg_replace_callback(
+            "/^APP_NAME=.*$/m",
+            static fn (): string => "APP_NAME=\"" . $value . "\"",
+            file_get_contents($file)
+        ));
+    ' "$env_file" "$APP_NAME"
+done
+
+php -r '
+    $file = "README.md";
+    if (! file_exists($file)) { return; }
+    $name = $argv[1];
+    file_put_contents($file, preg_replace_callback(
+        "/^# .*$/m",
+        static fn (): string => "# " . $name,
+        file_get_contents($file),
+        1
+    ));
+' "$APP_NAME"
+
+# Template-only documentation: the spec and plan that describe building the template, and the
+# instructions for creating a project from it. None of it belongs in the generated project.
+rm -rf docs/superpowers
+rm -f TEMPLATE.md
+[[ -d docs && -z "$(ls -A docs)" ]] && rmdir docs
+
+# Drop the README's pointer at TEMPLATE.md — the file it points at no longer exists.
+php -r '
+    $file = "README.md";
+    if (! file_exists($file)) { return; }
+    file_put_contents($file, preg_replace(
+        "/^> Creating a new project from this template.*\R\R?/m",
+        "",
+        file_get_contents($file)
+    ));
+'
+
+if [[ "${SKIP_INSTALL:-0}" != "1" ]]; then
+    composer install
+    [[ -f .env ]] || cp .env.example .env
+    php artisan key:generate
+    echo
+    echo "Next: create the Postgres database named in .env, then run 'php artisan migrate'."
+fi
+
+rm -f "$0"
+
+if command -v git >/dev/null && git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    git add -A
+    echo "Changes staged. Review with 'git diff --cached', then commit."
+fi

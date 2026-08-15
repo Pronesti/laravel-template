@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  static:
+    name: Static analysis
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          coverage: none
+      - uses: ramsey/composer-install@v3
+      - run: composer lint:test
+      - run: composer stan
+      - run: composer rector
+
+  tests:
+    name: Tests (PHP ${{ matrix.php }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.4', '8.5']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+      - uses: ramsey/composer-install@v3
+      - run: cp .env.example .env
+      - run: php artisan key:generate
+      # Runs migrations + DatabaseSeeder against a throwaway SQLite file. The test suite
+      # never invokes the seeder's console path, so this is what catches a seeder that
+      # breaks on a fresh clone.
+      - run: touch database/ci.sqlite
+      - run: php artisan migrate --seed --force
+        env:
+          DB_CONNECTION: sqlite
+          DB_DATABASE: database/ci.sqlite
+      - run: composer test

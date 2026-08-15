@@ -1,0 +1,52 @@
+# Dependencies
+/vendor
+/node_modules
+
+# Environment
+.env
+.env.*
+!.env.example
+/auth.json
+/storage/*.key
+
+# Laravel runtime (storage/* and bootstrap/cache keep their own nested .gitignore)
+/public/build
+/public/hot
+/public/storage
+/storage/pail
+*.log
+
+# Tooling caches
+/.phpunit.cache
+.phpunit.result.cache
+/.pest
+.pint.cache
+.phpstan.cache
+/.rector.cache
+_ide_helper.php
+_ide_helper_models.php
+.phpactor.json
+/.php-cs-fixer.cache
+
+# Agents
+/.claude/settings.local.json
+/.claude/local
+/.codex
+/.cursor/
+/.gemini
+/.serena
+/.superpowers
+
+# Editors
+/.fleet
+/.idea
+/.nova
+/.vscode
+/.zed
+
+# OS
+.DS_Store
+Thumbs.db
+
+# CI scratch database
+/database/ci.sqlite
