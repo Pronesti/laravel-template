@@ -22,7 +22,7 @@ jobs:
         with:
           php-version: '8.4'
           coverage: none
-      - uses: ramsey/composer-install@v3
+      - uses: ramsey/composer-install@v4
       - run: composer lint:test
       - run: composer stan
       - run: composer rector
@@ -40,7 +40,7 @@ jobs:
         with:
           php-version: ${{ matrix.php }}
           coverage: none
-      - uses: ramsey/composer-install@v3
+      - uses: ramsey/composer-install@v4
       - run: cp .env.example .env
       - run: php artisan key:generate
       # Runs migrations + DatabaseSeeder against a throwaway SQLite file. The test suite
