@@ -29,7 +29,7 @@ it('rejects a password reset request with no email as problem+json', function ()
 it('resets the password with the token from the notification', function (): void {
     $user = User::factory()->create(['email' => 'reset@example.com']);
 
-    $token = Password::broker()->createToken($user);
+    $token = Password::createToken($user);
 
     $this->postJson('/api/v1/reset-password', [
         'token' => $token,
