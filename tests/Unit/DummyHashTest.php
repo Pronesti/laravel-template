@@ -9,10 +9,6 @@ it('keeps the dummy hash aligned with the shipped hashing configuration', functi
     $dummyHash = $constant->getValue();
     assert(is_string($dummyHash));
 
-    $info = password_get_info($dummyHash);
-    $options = $info['options'];
-    $cost = is_array($options) && isset($options['cost']) ? $options['cost'] : null;
-
     // .env.example is what a fresh project runs with. The dummy comparison only
     // costs the same as a genuine wrong-password check if its algorithm and cost
     // match that default — if this test fails, regenerate the constant:
@@ -24,6 +20,5 @@ it('keeps the dummy hash aligned with the shipped hashing configuration', functi
 
     expect($shippedRounds)->not->toBeNull()
         ->and(config('hashing.driver'))->toBe('bcrypt')
-        ->and($info['algoName'])->toBe('bcrypt')
-        ->and($cost)->toBe($shippedRounds);
+        ->and(password_needs_rehash($dummyHash, PASSWORD_BCRYPT, ['cost' => $shippedRounds]))->toBeFalse();
 });
